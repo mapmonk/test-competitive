@@ -10,10 +10,12 @@ import matplotlib.pyplot as plt
 @st.cache_data(show_spinner=False)
 def standardize_columns(df):
     # If 'Brand' is present, rename to 'Advertiser'
-    if 'Brand' in df.columns and 'Advertiser' not in df.columns:
-        df = df.rename(columns={'Brand': 'Advertiser'})
-    elif 'brand' in df.columns and 'Advertiser' not in df.columns:
-        df = df.rename(columns={'brand': 'Advertiser'})
+    if 'Advertiser' in df.columns:
+        return df
+    for col in df.columns:
+        if str(col).strip().lower() == 'brand':
+            df = df.rename(columns={col: 'Advertiser'})
+            return df
     return df
 
 @st.cache_data(show_spinner=False)
@@ -21,19 +23,9 @@ def parse_nielsen(file):
     # Detect if this is a Nielsen Ad Intel report with the special "Report" tab format
     xls = pd.ExcelFile(file)
     if "Report" in xls.sheet_names:
-        # Read the "Report" sheet without treating any row as header
         df_raw = pd.read_excel(xls, sheet_name="Report", header=None)
-        # Search for "Brand" in cell A4
         if df_raw.shape[0] >= 4 and str(df_raw.iloc[3, 0]).strip().lower() == "brand":
-            # Find the first fully empty row after the "Brand" header, or end of file
-            brand_col = df_raw.iloc[4:, 0].dropna().reset_index(drop=True)
-            # We'll treat the column below A4 as 'Advertiser' names (could be brands)
-            advertisers = brand_col.tolist()
-            # For demonstration, we'll prompt the user to map these brands to the rest of the data if needed.
-            # We'll also try to extract the actual data (assuming typical Ad Intel structure)
-            # Find the first row after A4 that looks like the column headers (often row 5 or 6)
-            data_start_row = 3
-            # Find actual data table: search for a header row containing "Spend" or "Media Channel"
+            # Try to find header row with "Spend" and "Media Channel"
             possible_headers = None
             for i in range(4, min(df_raw.shape[0], 15)):
                 row = df_raw.iloc[i].astype(str).str.lower().tolist()
@@ -44,19 +36,16 @@ def parse_nielsen(file):
                 nielsen_data = pd.read_excel(
                     xls, sheet_name="Report", header=possible_headers)
                 nielsen_data = standardize_columns(nielsen_data)
-                # If there's a "Brand" column, treat it as "Advertiser"
                 nielsen_data = nielsen_data.rename(
                     columns={"Brand": "Advertiser", "brand": "Advertiser"}
                 )
                 return nielsen_data
             else:
-                # Fallback: just try to read with headers at row 5 (A6)
                 nielsen_data = pd.read_excel(
                     xls, sheet_name="Report", header=5)
                 nielsen_data = standardize_columns(nielsen_data)
                 return nielsen_data
         else:
-            # Not the expected Ad Intel format, try normal parsing
             df = pd.read_excel(xls, sheet_name="Report")
             df = standardize_columns(df)
             return df
@@ -96,9 +85,13 @@ def parse_files(files):
 # ------------------- HELPER FUNCTIONS -------------------
 
 def get_advertisers(df):
+    if 'Advertiser' not in df.columns:
+        return []
     return sorted(df['Advertiser'].dropna().unique())
 
 def get_media_channels(df):
+    if 'Media Channel' not in df.columns:
+        return []
     return sorted(df['Media Channel'].dropna().unique())
 
 def filter_by_channel(df, selected_channels):
@@ -110,7 +103,6 @@ def apply_channel_grouping(df, grouping_dict):
     return df
 
 def compute_pie_data(df, group_col='Media Channel'):
-    # Returns a dict: advertiser -> {channel: spend%}
     pie_data = defaultdict(dict)
     for adv, subdf in df.groupby('Advertiser'):
         total = subdf['Spend'].sum()
@@ -124,7 +116,6 @@ def compute_total_spend(df):
     return df.groupby('Advertiser')['Spend'].sum().sort_values(ascending=False)
 
 def get_top_channels(pie, threshold=0.5):
-    # pie: dict channel->percent
     sorted_channels = sorted(pie.items(), key=lambda x: x[1], reverse=True)
     total = 0
     top_channels = []
@@ -137,7 +128,6 @@ def get_top_channels(pie, threshold=0.5):
 
 def compare_pie(primary_pie, competitor_pies, threshold_similar=5, threshold_diff=20):
     summary = []
-    # Gather all channels appearing in any pie
     channels = set(primary_pie.keys())
     for comp in competitor_pies:
         channels.update(comp.keys())
@@ -179,13 +169,36 @@ if uploaded_files:
     df = parse_files(uploaded_files)
     # Standardize columns if needed
     df = df.rename(columns=lambda x: x.strip())
+
+    # ----------- ADVERTISER MANUAL ENTRY IF MISSING -----------
+    advertisers = get_advertisers(df)
+    manual_advertisers = []
+    if not advertisers:
+        st.warning("No advertisers or brands found in the uploaded files. Please manually enter the advertiser/brand names separated by commas.")
+        manual_input = st.text_input("Enter advertiser/brand names (comma separated):")
+        if manual_input:
+            manual_advertisers = [name.strip() for name in manual_input.split(",") if name.strip()]
+            # Add new column to df if not present
+            if 'Advertiser' not in df.columns:
+                if df.shape[0] > 0:
+                    df['Advertiser'] = np.nan
+                else:
+                    # Create a dummy DataFrame with only Advertiser column for UI continuity
+                    df = pd.DataFrame({'Advertiser': manual_advertisers})
+            # Fill missing advertisers in the data (if empty), otherwise just use these for selection
+            df['Advertiser'] = df['Advertiser'].fillna('')
+            for idx, val in enumerate(df['Advertiser']):
+                if not val and idx < len(manual_advertisers):
+                    df.at[idx, 'Advertiser'] = manual_advertisers[idx]
+            advertisers = manual_advertisers
+
+    if not advertisers:
+        st.error("No advertisers/brands available for selection. Please check your files or enter advertiser names above.")
+        st.stop()
+
     st.success(f"Loaded {len(df)} rows from {len(uploaded_files)} files.")
 
     # ----------- PRIMARY ADVERTISER SELECTION -----------
-    advertisers = get_advertisers(df)
-    if not advertisers:
-        st.warning("No advertisers or brands found in the uploaded files. Please check your files and try again.")
-        st.stop()
     primary = st.selectbox("Select your primary advertiser (brand):", advertisers)
     competitors = [a for a in advertisers if a != primary]
 
@@ -220,9 +233,10 @@ if uploaded_files:
     pattern_lines = compare_pie(primary_pie, competitor_pies, threshold_similar=5, threshold_diff=20)
     if pattern_lines:
         summary.extend(pattern_lines)
-    rank = list(total_spend.index).index(primary) + 1
-    n_adv = len(total_spend)
-    summary.append(f"- Primary Advertiser ranks {rank} out of {n_adv} in total ad spend.")
+    if primary in total_spend.index:
+        rank = list(total_spend.index).index(primary) + 1
+        n_adv = len(total_spend)
+        summary.append(f"- Primary Advertiser ranks {rank} out of {n_adv} in total ad spend.")
     top_channel_lines = highlight_top_channels(primary_pie, competitor_pies)
     if top_channel_lines:
         summary.extend(top_channel_lines)
@@ -249,7 +263,6 @@ if uploaded_files:
                 textprops=dict(color="w"),
                 wedgeprops=dict(width=0.5 if adv == primary else 0.3)
             )
-            # Highlight primary advertiser
             ax.set_title(adv + (" (Primary)" if adv == primary else " (Competitor)"), color=("red" if adv == primary else "black"))
             st.pyplot(fig)
             buf = io.BytesIO()
