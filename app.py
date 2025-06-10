@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+from typing import Dict
 import streamlit as st
 import pandas as pd
 import pptx
