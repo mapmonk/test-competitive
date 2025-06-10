@@ -1,76 +1,232 @@
-import os
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import numpy as np
 import io
-import tempfile
-import openai
-from pptx import Presentation
-from openpyxl import load_workbook
-from datetime import datetime
+from collections import defaultdict
+import matplotlib.pyplot as plt
 
-# --- Helper Functions ---
+# ------------------- DATA UPLOAD AND PARSING -------------------
 
-def extract_brand_name(excel_file) -> str:
-    wb = load_workbook(filename=excel_file, read_only=True, data_only=True)
-    cover = wb['Cover']
-    brand = cover['B4'].value
-    wb.close()
-    return brand.strip() if brand else "Unknown Brand"
-
-def parse_daily_tab(excel_file, tab_name: str) -> pd.DataFrame:
-    df = pd.read_excel(excel_file, sheet_name=tab_name)
-    # Try to standardize date column
-    date_col = next((col for col in df.columns if 'date' in col.lower()), None)
-    if date_col:
-        df[date_col] = pd.to_datetime(df[date_col])
+@st.cache_data(show_spinner=False)
+def parse_nielsen(file):
+    # Placeholder: replace with actual parsing logic
+    df = pd.read_excel(file)
+    # Expecting columns: Advertiser, Media Channel, Spend, Date, etc.
     return df
 
-def parse_slides_text(slides_file) -> str:
-    prs = Presentation(slides_file)
-    text = []
-    for slide in prs.slides:
-        for shape in slide.shapes:
-            if hasattr(shape, "text"):
-                text.append(shape.text)
-        if slide.has_notes_slide and slide.notes_slide.notes_text_frame:
-            text.append(slide.notes_slide.notes_text_frame.text)
-    return "\n".join(text)
+@st.cache_data(show_spinner=False)
+def parse_pathmatics(file):
+    # Placeholder: replace with actual parsing logic
+    df = pd.read_excel(file)
+    return df
 
-def aggregate_data(df, date_col, value_col, group_cols=[], freq='D'):
+@st.cache_data(show_spinner=False)
+def parse_semrush(file):
+    # Placeholder: replace with mapping logic
+    df = pd.read_excel(file)
+    return df
+
+def parse_files(files):
+    data = []
+    for file in files:
+        name = file.name.lower()
+        if "nielsen" in name:
+            data.append(parse_nielsen(file))
+        elif "pathmatics" in name:
+            data.append(parse_pathmatics(file))
+        elif "semrush" in name:
+            data.append(parse_semrush(file))
+        else:
+            # Guess or prompt user for mapping
+            df = pd.read_excel(file)
+            data.append(df)
+    return pd.concat(data, ignore_index=True)
+
+# ------------------- HELPER FUNCTIONS -------------------
+
+def get_advertisers(df):
+    return sorted(df['Advertiser'].unique())
+
+def get_media_channels(df):
+    return sorted(df['Media Channel'].unique())
+
+def filter_by_channel(df, selected_channels):
+    return df[df['Media Channel'].isin(selected_channels)].copy()
+
+def apply_channel_grouping(df, grouping_dict):
     df = df.copy()
-    df[date_col] = pd.to_datetime(df[date_col])
-    df.set_index(date_col, inplace=True)
-    agg = df.groupby(group_cols + [pd.Grouper(freq=freq)])[value_col].sum().reset_index()
-    return agg
+    df['Media Channel Grouped'] = df['Media Channel'].map(grouping_dict).fillna(df['Media Channel'])
+    return df
 
-def find_outliers(df, value_col):
-    q1 = df[value_col].quantile(0.25)
-    q3 = df[value_col].quantile(0.75)
-    iqr = q3 - q1
-    lower = q1 - 1.5 * iqr
-    upper = q3 + 1.5 * iqr
-    outliers = df[(df[value_col] < lower) | (df[value_col] > upper)]
-    return outliers
+def compute_pie_data(df, group_col='Media Channel'):
+    # Returns a dict: advertiser -> {channel: spend%}
+    pie_data = defaultdict(dict)
+    for adv, subdf in df.groupby('Advertiser'):
+        total = subdf['Spend'].sum()
+        if total == 0: continue
+        channel_sums = subdf.groupby(group_col)['Spend'].sum()
+        for channel, spend in channel_sums.items():
+            pie_data[adv][channel] = spend / total * 100
+    return pie_data
 
-def get_time_periods():
-    return {
-        "Daily": 'D',
-        "Weekly": 'W',
-        "Monthly": 'M',
-        "Quarterly": 'Q',
-        "Yearly": 'Y'
-    }
+def compute_total_spend(df):
+    return df.groupby('Advertiser')['Spend'].sum().sort_values(ascending=False)
 
-def build_partner_mix_chart(agg_df, brand, value_col='Spend', time_period='Monthly'):
-    # Pie chart for media mix with distinct colors
-    fig = px.pie(
-        agg_df,
-        names='Media Partner',
-        values=value_col,
-        title=f"{brand}: {value_col} Media Mix ({time_period})",
-        color='Media Partner',
-        color_discrete_sequence=px.colors.qualitative.Set3  # or any other distinct color set
+def get_top_channels(pie, threshold=0.5):
+    # pie: dict channel->percent
+    sorted_channels = sorted(pie.items(), key=lambda x: x[1], reverse=True)
+    total = 0
+    top_channels = []
+    for ch, pct in sorted_channels:
+        total += pct / 100
+        top_channels.append(ch)
+        if total >= threshold:
+            break
+    return top_channels
+
+def compare_pie(primary_pie, competitor_pies, threshold_similar=5, threshold_diff=20):
+    summary = []
+    # Gather all channels appearing in any pie
+    channels = set(primary_pie.keys())
+    for comp in competitor_pies:
+        channels.update(comp.keys())
+
+    for channel in channels:
+        p_val = primary_pie.get(channel, 0)
+        for comp_name, comp_pie in competitor_pies.items():
+            c_val = comp_pie.get(channel, 0)
+            diff = abs(p_val - c_val)
+            if diff < threshold_similar:
+                summary.append(f"- Similar spend on {channel} (within 5%) between Primary and {comp_name}.")
+            elif diff > threshold_diff:
+                direction = "more" if p_val > c_val else "less"
+                summary.append(f"- Primary spends >20% {direction} on {channel} than {comp_name}.")
+    return summary
+
+def highlight_top_channels(primary_pie, competitor_pies):
+    lines = []
+    primary_top = get_top_channels(primary_pie)
+    for comp_name, comp_pie in competitor_pies.items():
+        comp_top = get_top_channels(comp_pie)
+        shared = set(primary_top) & set(comp_top)
+        if shared:
+            lines.append(f"- Top channels shared with {comp_name}: {', '.join(shared)}.")
+    return lines
+
+# ------------------- UI LAYOUT -------------------
+
+st.title("Advertiser Media Mix Dashboard")
+
+uploaded_files = st.file_uploader(
+    "Upload Nielsen, Pathmatics, SEM Rush Excel files (multiple allowed):",
+    type=["xlsx", "xls"],
+    accept_multiple_files=True
+)
+
+if uploaded_files:
+    # Parse and merge all files
+    df = parse_files(uploaded_files)
+    # Standardize columns if needed
+    df = df.rename(columns=lambda x: x.strip())
+    st.success(f"Loaded {len(df)} rows from {len(uploaded_files)} files.")
+
+    # ----------- PRIMARY ADVERTISER SELECTION -----------
+    advertisers = get_advertisers(df)
+    primary = st.selectbox("Select your primary advertiser:", advertisers)
+    competitors = [a for a in advertisers if a != primary]
+
+    # ----------- FILTER BY MEDIA CHANNEL -----------
+    all_channels = get_media_channels(df)
+    selected_channels = st.multiselect(
+        "Filter by media channel (leave blank for all):",
+        all_channels,
+        default=all_channels
     )
-    fig.update_traces(textinfo='percent+label')
-    return fig
+    if selected_channels:
+        df = filter_by_channel(df, selected_channels)
+
+    # ----------- CUSTOM CHANNEL GROUPING -----------
+    st.markdown("**Custom Group Media Channels** (optional):")
+    grouping_dict = {}
+    for ch in all_channels:
+        group = st.text_input(f"Group for '{ch}'", value=ch, key=f"group_{ch}")
+        grouping_dict[ch] = group
+    df = apply_channel_grouping(df, grouping_dict)
+    group_col = "Media Channel Grouped" if any(grouping_dict[ch] != ch for ch in all_channels) else "Media Channel"
+
+    # ----------- PIE CHART DATA -----------
+    pie_data = compute_pie_data(df, group_col=group_col)
+    total_spend = compute_total_spend(df)
+    primary_pie = pie_data.get(primary, {})
+    competitor_pies = {a: pie_data[a] for a in competitors if a in pie_data}
+
+    # ----------- SUMMARY STATISTICS -----------
+    st.subheader("Summary Statistics")
+    summary = []
+    pattern_lines = compare_pie(primary_pie, competitor_pies, threshold_similar=5, threshold_diff=20)
+    if pattern_lines:
+        summary.extend(pattern_lines)
+    rank = list(total_spend.index).index(primary) + 1
+    n_adv = len(total_spend)
+    summary.append(f"- Primary Advertiser ranks {rank} out of {n_adv} in total ad spend.")
+    top_channel_lines = highlight_top_channels(primary_pie, competitor_pies)
+    if top_channel_lines:
+        summary.extend(top_channel_lines)
+    if summary:
+        st.markdown("\n".join(summary))
+    else:
+        st.markdown("No notable similarities or differences in spend patterns detected.")
+
+    # ----------- PIE CHARTS -----------
+    st.subheader("Media Mix Pie Charts (each advertiser)")
+    pie_imgs = {}
+    ncols = min(3, len(advertisers))
+    cols = st.columns(ncols)
+    for idx, adv in enumerate(advertisers):
+        pie = pie_data.get(adv, {})
+        if not pie: continue
+        with cols[idx % ncols]:
+            fig, ax = plt.subplots()
+            wedges, texts, autotexts = ax.pie(
+                pie.values(),
+                labels=pie.keys(),
+                autopct='%1.1f%%',
+                startangle=140,
+                textprops=dict(color="w"),
+                wedgeprops=dict(width=0.5 if adv == primary else 0.3)
+            )
+            # Highlight primary advertiser
+            ax.set_title(adv + (" (Primary)" if adv == primary else " (Competitor)"), color=("red" if adv == primary else "black"))
+            st.pyplot(fig)
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png")
+            buf.seek(0)
+            pie_imgs[adv] = buf
+            plt.close(fig)
+
+    # ----------- DOWNLOAD DATA (EXCEL) -----------
+    st.subheader("Download Options")
+    filtered_df = df.copy()
+    filtered_df = filtered_df[filtered_df['Advertiser'].isin(advertisers)]
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        filtered_df.to_excel(writer, sheet_name='Filtered Media Mix', index=False)
+    st.download_button(
+        "Download Filtered Data as Excel",
+        data=output.getvalue(),
+        file_name="media_mix_filtered.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+    # ----------- DOWNLOAD PIE CHARTS (IMAGES) -----------
+    for adv, buf in pie_imgs.items():
+        st.download_button(
+            f"Download Pie Chart for {adv}",
+            data=buf.getvalue(),
+            file_name=f"media_mix_{adv}.png",
+            mime="image/png"
+        )
+else:
+    st.info("Please upload at least one Excel file to begin.")
+
+# ------------------- END OF APP -------------------
