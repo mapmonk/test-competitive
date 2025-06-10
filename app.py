@@ -12,16 +12,58 @@ def standardize_columns(df):
     # If 'Brand' is present, rename to 'Advertiser'
     if 'Brand' in df.columns and 'Advertiser' not in df.columns:
         df = df.rename(columns={'Brand': 'Advertiser'})
-    # Optionally, handle case-insensitivity
     elif 'brand' in df.columns and 'Advertiser' not in df.columns:
         df = df.rename(columns={'brand': 'Advertiser'})
     return df
 
 @st.cache_data(show_spinner=False)
 def parse_nielsen(file):
-    df = pd.read_excel(file)
-    df = standardize_columns(df)
-    return df
+    # Detect if this is a Nielsen Ad Intel report with the special "Report" tab format
+    xls = pd.ExcelFile(file)
+    if "Report" in xls.sheet_names:
+        # Read the "Report" sheet without treating any row as header
+        df_raw = pd.read_excel(xls, sheet_name="Report", header=None)
+        # Search for "Brand" in cell A4
+        if df_raw.shape[0] >= 4 and str(df_raw.iloc[3, 0]).strip().lower() == "brand":
+            # Find the first fully empty row after the "Brand" header, or end of file
+            brand_col = df_raw.iloc[4:, 0].dropna().reset_index(drop=True)
+            # We'll treat the column below A4 as 'Advertiser' names (could be brands)
+            advertisers = brand_col.tolist()
+            # For demonstration, we'll prompt the user to map these brands to the rest of the data if needed.
+            # We'll also try to extract the actual data (assuming typical Ad Intel structure)
+            # Find the first row after A4 that looks like the column headers (often row 5 or 6)
+            data_start_row = 3
+            # Find actual data table: search for a header row containing "Spend" or "Media Channel"
+            possible_headers = None
+            for i in range(4, min(df_raw.shape[0], 15)):
+                row = df_raw.iloc[i].astype(str).str.lower().tolist()
+                if any("spend" in cell for cell in row) and any("channel" in cell for cell in row):
+                    possible_headers = i
+                    break
+            if possible_headers is not None:
+                nielsen_data = pd.read_excel(
+                    xls, sheet_name="Report", header=possible_headers)
+                nielsen_data = standardize_columns(nielsen_data)
+                # If there's a "Brand" column, treat it as "Advertiser"
+                nielsen_data = nielsen_data.rename(
+                    columns={"Brand": "Advertiser", "brand": "Advertiser"}
+                )
+                return nielsen_data
+            else:
+                # Fallback: just try to read with headers at row 5 (A6)
+                nielsen_data = pd.read_excel(
+                    xls, sheet_name="Report", header=5)
+                nielsen_data = standardize_columns(nielsen_data)
+                return nielsen_data
+        else:
+            # Not the expected Ad Intel format, try normal parsing
+            df = pd.read_excel(xls, sheet_name="Report")
+            df = standardize_columns(df)
+            return df
+    else:
+        df = pd.read_excel(file)
+        df = standardize_columns(df)
+        return df
 
 @st.cache_data(show_spinner=False)
 def parse_pathmatics(file):
@@ -54,10 +96,10 @@ def parse_files(files):
 # ------------------- HELPER FUNCTIONS -------------------
 
 def get_advertisers(df):
-    return sorted(df['Advertiser'].unique())
+    return sorted(df['Advertiser'].dropna().unique())
 
 def get_media_channels(df):
-    return sorted(df['Media Channel'].unique())
+    return sorted(df['Media Channel'].dropna().unique())
 
 def filter_by_channel(df, selected_channels):
     return df[df['Media Channel'].isin(selected_channels)].copy()
@@ -124,7 +166,7 @@ def highlight_top_channels(primary_pie, competitor_pies):
 
 # ------------------- UI LAYOUT -------------------
 
-st.title("Advertiser Media Mix Dashboard")
+st.title("Advertiser (Brand) Media Mix Dashboard")
 
 uploaded_files = st.file_uploader(
     "Upload Nielsen, Pathmatics, SEM Rush Excel files (multiple allowed):",
@@ -141,7 +183,10 @@ if uploaded_files:
 
     # ----------- PRIMARY ADVERTISER SELECTION -----------
     advertisers = get_advertisers(df)
-    primary = st.selectbox("Select your primary advertiser:", advertisers)
+    if not advertisers:
+        st.warning("No advertisers or brands found in the uploaded files. Please check your files and try again.")
+        st.stop()
+    primary = st.selectbox("Select your primary advertiser (brand):", advertisers)
     competitors = [a for a in advertisers if a != primary]
 
     # ----------- FILTER BY MEDIA CHANNEL -----------
@@ -187,7 +232,7 @@ if uploaded_files:
         st.markdown("No notable similarities or differences in spend patterns detected.")
 
     # ----------- PIE CHARTS -----------
-    st.subheader("Media Mix Pie Charts (each advertiser)")
+    st.subheader("Media Mix Pie Charts (each advertiser/brand)")
     pie_imgs = {}
     ncols = min(3, len(advertisers))
     cols = st.columns(ncols)
