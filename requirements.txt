@@ -5,4 +5,3 @@ openpyxl
 matplotlib
 plotly
 openai
-pip install kaleido
