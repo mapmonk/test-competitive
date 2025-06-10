@@ -62,5 +62,15 @@ def get_time_periods():
         "Yearly": 'Y'
     }
 
-def build_partner_mix_chart(agg_df, brand, value_col='Spend', time_period*
-
+def build_partner_mix_chart(agg_df, brand, value_col='Spend', time_period='Monthly'):
+    # Pie chart for media mix with distinct colors
+    fig = px.pie(
+        agg_df,
+        names='Media Partner',
+        values=value_col,
+        title=f"{brand}: {value_col} Media Mix ({time_period})",
+        color='Media Partner',
+        color_discrete_sequence=px.colors.qualitative.Set3  # or any other distinct color set
+    )
+    fig.update_traces(textinfo='percent+label')
+    return fig
