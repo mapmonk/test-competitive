@@ -8,22 +8,31 @@ import matplotlib.pyplot as plt
 # ------------------- DATA UPLOAD AND PARSING -------------------
 
 @st.cache_data(show_spinner=False)
+def standardize_columns(df):
+    # If 'Brand' is present, rename to 'Advertiser'
+    if 'Brand' in df.columns and 'Advertiser' not in df.columns:
+        df = df.rename(columns={'Brand': 'Advertiser'})
+    # Optionally, handle case-insensitivity
+    elif 'brand' in df.columns and 'Advertiser' not in df.columns:
+        df = df.rename(columns={'brand': 'Advertiser'})
+    return df
+
+@st.cache_data(show_spinner=False)
 def parse_nielsen(file):
-    # Placeholder: replace with actual parsing logic
     df = pd.read_excel(file)
-    # Expecting columns: Advertiser, Media Channel, Spend, Date, etc.
+    df = standardize_columns(df)
     return df
 
 @st.cache_data(show_spinner=False)
 def parse_pathmatics(file):
-    # Placeholder: replace with actual parsing logic
     df = pd.read_excel(file)
+    df = standardize_columns(df)
     return df
 
 @st.cache_data(show_spinner=False)
 def parse_semrush(file):
-    # Placeholder: replace with mapping logic
     df = pd.read_excel(file)
+    df = standardize_columns(df)
     return df
 
 def parse_files(files):
@@ -37,8 +46,8 @@ def parse_files(files):
         elif "semrush" in name:
             data.append(parse_semrush(file))
         else:
-            # Guess or prompt user for mapping
             df = pd.read_excel(file)
+            df = standardize_columns(df)
             data.append(df)
     return pd.concat(data, ignore_index=True)
 
