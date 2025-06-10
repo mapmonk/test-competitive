@@ -1,7 +1,6 @@
 streamlit
 pandas
-python-pptx
-openpyxl
+numpy
 matplotlib
-plotly
-openai
+openpyxl
+xlsxwriter
