@@ -22,7 +22,7 @@ def build_partner_mix_pie_chart(agg_df, brand, value_col='Spend', time_period='M
     return fig
 
 # ... [existing code above] ...
-
+brand_data = {...}  # or brand_data = some_function()
 for brand, data in brand_data.items():
     spend_df = data['spend']
     # Guess columns
