@@ -1,68 +1,72 @@
-# Competitive Ad Spend Analysis Dashboard
+# Media Spend Competitive Analysis (Pie Charts)
 
-This Streamlit app enables robust competitive media mix analysis using Nielsen Ad Intel and Pathmatics data.  
-It supports uploading and parsing multiple Excel files, mapping advertiser and channel names, selecting a primary advertiser, and setting analysis date ranges. The app also supports branded, multi-step workflows, and exports.
+This Streamlit app generates one pie chart **per advertiser**, showing each channel's % of total media spend. Channel colors are consistent across all advertisers.
+
+---
 
 ## Features
 
-- Loading progress bar at the start of the app for improved UX.
-- Upload one or more Nielsen Ad Intel and Pathmatics Excel files (`.xls` or `.xlsx`).
-- Automatic extraction and mapping of advertiser and media channel names.
-- Interactive UI for renaming advertisers and channels.
-- Set a primary advertiser and select an analysis date range.
-- **Dashboard view with aggregation, charts, and insights (NEW!).**
-- Export options for Excel and CSV.
-- Monks logo preset in sidebar.
+- **Upload**: Excel (.xlsx) or CSV (.csv) files from Nielsen Ad Intel, Pathmatics, or similar.
+- **Visualization**: One pie chart per advertiser, showing each channel's % of spend.
+- **Color Legend**: Consistent, distinct colors for each channel across all charts.
+- **Automatic Handling**: Ignores missing/zero spend rows, automatic type conversion.
 
-## Supported Excel File Formats
+---
 
-The app automatically detects and extracts advertisers and channels from two supported file types:
+## Data Format
 
-1. **Nielsen Ad Intel**:
-    - Should have a sheet named **"Report"**.
-    - Advertisers: Extracted from column A, starting at cell A5 (row 5).
-    - Channels: Extracted from column B, starting at cell B5 (row 5).
+Your file must have these columns (capitalization/spacing must match):
 
-2. **Pathmatics**:
-    - Should have sheets named **"Cover"** and **"Daily Spend"**.
-    - Advertiser: Extracted from cell B4 on the "Cover" sheet.
-    - Channels: Extracted from the header row (row 1, columns B and onward) on the "Daily Spend" sheet.
+| Advertiser | Channel | Spend |
+|------------|---------|-------|
+| AdvA       | TV      | 1000  |
+| AdvA       | Digital | 500   |
+| AdvB       | TV      | 2000  |
+| AdvB       | Digital | 800   |
 
-If a file does not match these formats, an error will be shown and that file will not be processed.
+- **Advertiser**: Name of the advertiser.
+- **Channel**: Marketing channel (e.g., TV, Digital, Radio, Social).
+- **Spend**: Numeric (no $ or %, just numbers).
 
-## Setup
+---
 
-1. Clone this repository.
-2. Place the Monks logo in `static/monks_logo.png`.
-3. (Optional/Future) Client logo upload is not yet implemented – the current sidebar only supports the Monks logo.
-4. Install dependencies:
+## How to Run
+
+1. Install dependencies:
+
     ```
     pip install -r requirements.txt
     ```
-5. Run the app:
+
+2. Start the app:
+
     ```
     streamlit run app.py
     ```
-6. Open the provided local URL in your browser.
 
-## Usage
+3. Upload your `.xlsx` or `.csv` file using the uploader.
 
-1. **Upload Files:** Upload one or more Excel files in the supported formats above.
-2. **Advertiser & Channel Mapping:** Map extracted advertisers and channels to your preferred names.
-3. **Set Date Range:** Choose the start and end date for your analysis.
-4. **Select Primary Advertiser:** Identify your main brand for focused analysis.
-5. **Dashboard:** View summary information, insights, charts, and comparisons.
-6. **Export:** Download aggregated data as Excel or CSV.
+---
 
-## Notes
+## Example Files
 
-- The app expects Excel files in the formats detailed above for correct processing.
-- If a file is not in the supported format, an error will be displayed and it will not be included in the analysis.
-- Uploaded files are saved to the `uploaded_files/` directory during your session.
-- File, advertiser, and channel mapping is session-based (will reset on app restart).
-- All outputs and exports are branded with the Monks logo (no client logo upload yet).
-- Aggregation, charts, and dashboard visualizations are now implemented!
+- Nielsen Ad Intel or Pathmatics exports are supported.
+- If your file uses different column names, edit in Excel so the first row matches: `Advertiser`, `Channel`, `Spend`.
+
+---
+
+## Troubleshooting
+
+- **Missing columns**: Check that your file includes the required headers.
+- **Empty chart**: Check for blank/zero spend rows or wrong column names.
+- **Colors**: Up to 20 unique channels are supported per chart.
+
+---
 
 ## License
 
-[Specify your license here]
+MIT
+
+---
+
+Built for media and marketing analysts by [mapmonk/test-competitive](https://github.com/mapmonk/test-competitive).
