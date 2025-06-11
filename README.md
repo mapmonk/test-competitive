@@ -12,16 +12,22 @@ This app provides a step-by-step workflow for competitive ad spend analysis, ena
 - **Primary advertiser selection**
 - **Interactive dashboard** with Plotly charts
 - **Data export** (CSV, Excel)
+- **Export dashboard to PDF** (requires `reportlab`)
 - **Session safety**: Robust error handling to prevent crashes
 
 ## Requirements
 
 - **Python 3.8+**
-- **[Streamlit](https://streamlit.io/)**
-- **[plotly](https://plotly.com/python/)**
-- **[streamlit-extras](https://github.com/okld/streamlit-extras)**
+- [Streamlit](https://streamlit.io/)
+- [plotly](https://plotly.com/python/)
+- [streamlit-extras](https://github.com/okld/streamlit-extras)
+- pandas
+- openpyxl
+- **reportlab** (for PDF export)
 
 ## Installation
+
+Install all dependencies with:
 
 ```bash
 pip install -r requirements.txt
@@ -30,7 +36,7 @@ pip install -r requirements.txt
 Or install individually:
 
 ```bash
-pip install streamlit plotly streamlit-extras pandas
+pip install streamlit plotly streamlit-extras pandas openpyxl reportlab
 ```
 
 ## Usage
@@ -48,12 +54,12 @@ streamlit run app.py
 
 ## Example Workflow
 
-1. **Upload** your Excel ad spend files.
-2. **Map** advertiser and channel names as needed.
-3. **Assign colors** for each channel.
-4. **Select** your date range.
-5. **Choose** your primary advertiser.
-6. **View** interactive charts and export your data.
+1. Upload your Excel ad spend files.
+2. Map advertiser and channel names as needed.
+3. Assign colors for each channel.
+4. Select your date range.
+5. Choose your primary advertiser.
+6. View interactive charts and export your data (including to PDF).
 
 ## Troubleshooting
 
