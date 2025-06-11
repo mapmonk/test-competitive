@@ -1,6 +1,8 @@
-streamlit
+Flask
 pandas
-numpy
-matplotlib
 openpyxl
-xlsxwriter
+XlsxWriter
+matplotlib
+jinja2
+reportlab
+python-docx
