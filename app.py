@@ -6,12 +6,6 @@ from datetime import datetime
 # App config
 st.set_page_config(page_title="Competitive Ad Spend Analysis", layout="wide")
 
-# Paths and folders
-UPLOAD_FOLDER = "uploads"
-MONKS_LOGO_PATH = "static/monks_logo.png"
-CLIENT_LOGO_PATH = "static/client_logo.png"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
 # Session state initialization
 for key, default in [
     ("uploaded_files", []),
@@ -144,15 +138,3 @@ if st.session_state.get("primary_advertiser"):
     export_format = st.selectbox("Export report as:", ["xlsx", "csv", "pdf", "png"])
     if st.button("Export"):
         st.info(f"Exporting as {export_format}... [TODO: Implement export logic]")
-
-# Client logo upload in sidebar
-st.sidebar.header("Upload Client Logo")
-client_logo = st.sidebar.file_uploader("Client Logo (PNG)", type=['png'])
-if client_logo is not None:
-    client_logo_path = os.path.join("static", "client_logo.png")
-    with open(client_logo_path, "wb") as f:
-        f.write(client_logo.getbuffer())
-    st.session_state["client_logo"] = client_logo_path
-    st.sidebar.image(client_logo_path, width=100)
-elif os.path.exists(CLIENT_LOGO_PATH):
-    st.sidebar.image(CLIENT_LOGO_PATH, width=100)
