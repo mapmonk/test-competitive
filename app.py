@@ -10,12 +10,6 @@ except ImportError:
     st.stop()
 
 try:
-    from streamlit_extras.steps_bar import steps_bar
-except ImportError:
-    st.error("Please install streamlit-extras: pip install streamlit-extras")
-    st.stop()
-
-try:
     from reportlab.lib.pagesizes import letter
     from reportlab.pdfgen import canvas
     from io import BytesIO
@@ -32,13 +26,23 @@ def get_state(key, default=None):
 def set_state(key, value):
     st.session_state[key] = value
 
-# --- Step Progress Bar (Critical for navigation clarity) ---
-steps = [
+# --- Step Progress Bar (Native Streamlit alternative) ---
+def streamlit_step_bar(current_step, total_steps, steps_labels):
+    cols = st.columns(total_steps)
+    for idx, col in enumerate(cols):
+        if idx < current_step:
+            col.success(f"✓ {steps_labels[idx]}")
+        elif idx == current_step:
+            col.info(f"→ {steps_labels[idx]}")
+        else:
+            col.write(steps_labels[idx])
+
+steps_labels = [
     "Upload", "Advertiser Map", "Channel Map", "Channel Colors",
     "Date Range", "Primary Adv", "Dashboard"
 ]
 current_step = get_state("current_step", 0)
-steps_bar(steps, current_step)
+streamlit_step_bar(current_step, len(steps_labels), steps_labels)
 
 # --- Step Navigation (Critical: prevents broken flow) ---
 def go_to_step(step):
@@ -62,7 +66,6 @@ if current_step == 0:
 # --- Step 2: Advertiser Map ---
 elif current_step == 1:
     st.header("Map Advertisers")
-    # Defensive: ensure previous data exists
     advertisers = get_state("demo_advertisers", demo_advertisers)
     adv_map_df = pd.DataFrame({"Original": advertisers, "Mapped": advertisers})
     adv_map_edit = st.data_editor(adv_map_df, num_rows="dynamic")
@@ -117,7 +120,6 @@ elif current_step == 3:
 elif current_step == 4:
     st.header("Select Date Range")
     date_range = st.date_input("Date Range", value=(datetime.date(2024, 1, 1), datetime.date(2024, 12, 31)))
-    # Defensive: Ensure both dates are set and valid
     if not date_range or len(date_range) != 2 or not all(date_range):
         st.warning("Please select both a start and end date before continuing.")
         st.button("Continue", on_click=go_to_step, args=(5,), disabled=True)
@@ -142,7 +144,6 @@ elif current_step == 5:
 # --- Step 7: Dashboard ---
 elif current_step == 6:
     st.header("Dashboard")
-    # --- Defensive: check all dependencies/data ---
     adv_map = get_state("adv_map")
     ch_map = get_state("ch_map")
     channel_colors = get_state("channel_colors")
