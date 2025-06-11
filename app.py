@@ -18,7 +18,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 progress_text = "Initializing session, please wait..."
 progress_bar = st.progress(0, text=progress_text)
 for percent_complete in range(60):
-    time.sleep(0.005)  # Simulate light loading, adjust as needed
+    time.sleep(0.005)
     progress_bar.progress(percent_complete + 1, text=progress_text)
 progress_bar.empty()
 
@@ -56,15 +56,33 @@ def extract_advertisers_and_channels(filepaths):
     errors = []
     for path in filepaths:
         try:
-            df = pd.read_excel(path)
-            if 'Advertiser' in df.columns:
-                advertisers.update(df['Advertiser'].dropna().astype(str).unique())
-            else:
-                errors.append(f"File '{os.path.basename(path)}' is missing 'Advertiser' column.")
-            if 'Channel' in df.columns:
-                channels.update(df['Channel'].dropna().astype(str).unique())
-            else:
-                errors.append(f"File '{os.path.basename(path)}' is missing 'Channel' column.")
+            xl = pd.ExcelFile(path)
+            found = False
+            # 1. Try Nielsen Ad Intel (Report tab, A5 down for Advertiser, B5 down for Channel)
+            if "Report" in xl.sheet_names:
+                df = xl.parse("Report", header=None)
+                advs = df.iloc[4:, 0].dropna().astype(str).unique()  # A5 down
+                chans = df.iloc[4:, 1].dropna().astype(str).unique() # B5 down
+                if len(advs) > 0:
+                    advertisers.update(advs)
+                    found = True
+                if len(chans) > 0:
+                    channels.update(chans)
+                    found = True
+            # 2. Try Pathmatics (Cover tab cell B4, Daily Spend row 1 for channels)
+            if "Cover" in xl.sheet_names and "Daily Spend" in xl.sheet_names:
+                cover = xl.parse("Cover", header=None)
+                adv_val = str(cover.iloc[3, 1]) if pd.notnull(cover.iloc[3, 1]) else None  # B4 = row 3, col 1
+                if adv_val:
+                    advertisers.add(adv_val)
+                    found = True
+                spend = xl.parse("Daily Spend", header=None)
+                chans = spend.iloc[0, 1:].dropna().astype(str).unique()  # Row 1, B1 and right
+                if len(chans) > 0:
+                    channels.update(chans)
+                    found = True
+            if not found:
+                errors.append(f"File '{os.path.basename(path)}' does not match expected format or lacks data.")
         except Exception as e:
             errors.append(f"Error reading '{os.path.basename(path)}': {e}")
     return sorted(advertisers), sorted(channels), errors
