@@ -15,6 +15,14 @@ except ImportError:
     st.error("Please install streamlit-extras: pip install streamlit-extras")
     st.stop()
 
+try:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+    from io import BytesIO
+except ImportError:
+    st.error("Please install reportlab: pip install reportlab")
+    st.stop()
+
 import random
 
 # Helper for robust session state access
@@ -167,4 +175,44 @@ elif current_step == 6:
         st.plotly_chart(fig, use_container_width=True)
     st.subheader("Spend Summary Table")
     st.dataframe(df)
+
+    # --- PDF Export ---
+    def create_pdf(df, primary_adv, date_range):
+        buffer = BytesIO()
+        c = canvas.Canvas(buffer, pagesize=letter)
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(72, 750, "Competitive Ad Spend Dashboard")
+        c.setFont("Helvetica", 12)
+        c.drawString(72, 730, f"Primary Advertiser: {primary_adv}")
+        c.drawString(72, 715, f"Date Range: {date_range[0]} to {date_range[1]}")
+
+        # Table header
+        c.setFont("Helvetica-Bold", 12)
+        y = 690
+        x = 72
+        for col in ["Advertiser"] + list(df.columns):
+            c.drawString(x, y, col)
+            x += 100
+        # Table rows
+        c.setFont("Helvetica", 12)
+        y -= 18
+        for adv, row in df.iterrows():
+            x = 72
+            c.drawString(x, y, str(adv))
+            x += 100
+            for val in row.values:
+                c.drawString(x, y, str(val))
+                x += 100
+            y -= 18
+            if y < 72:
+                c.showPage()
+                y = 750
+        c.showPage()
+        c.save()
+        buffer.seek(0)
+        return buffer
+
+    pdf_buffer = create_pdf(df, primary_adv, date_range)
+    st.download_button("Export Dashboard as PDF", data=pdf_buffer, file_name="dashboard.pdf", mime="application/pdf")
+
     st.button("Back", on_click=go_to_step, args=(5,))
