@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from datetime import datetime
 import time
+import matplotlib.pyplot as plt
 
 # ---- Config ----
 st.set_page_config(page_title="Competitive Ad Spend Analysis", layout="wide")
@@ -33,6 +34,7 @@ for key, default in [
     ("advertisers", []),
     ("channels", []),
     ("file_read_error", None),
+    ("aggregated_data", None),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -86,6 +88,43 @@ def extract_advertisers_and_channels(filepaths):
         except Exception as e:
             errors.append(f"Error reading '{os.path.basename(path)}': {e}")
     return sorted(advertisers), sorted(channels), errors
+
+# ---- Simple Aggregation for Visualization ----
+def aggregate_and_prepare(filepaths, advertiser_map, channel_map):
+    all_rows = []
+    for path in filepaths:
+        try:
+            xl = pd.ExcelFile(path)
+            # Nielsen Ad Intel
+            if "Report" in xl.sheet_names:
+                df = xl.parse("Report", header=None)
+                rows = df.iloc[4:, [0, 1, 2, 3]].dropna(how="any")  # Assume spend is in columns 2/3
+                rows.columns = ["Advertiser", "Channel", "Spend", "Date"]
+                for _, row in rows.iterrows():
+                    mapped_adv = advertiser_map.get(str(row["Advertiser"]), str(row["Advertiser"]))
+                    mapped_chan = channel_map.get(str(row["Channel"]), str(row["Channel"]))
+                    spend = pd.to_numeric(row["Spend"], errors="coerce")
+                    date = row["Date"]
+                    all_rows.append({"Advertiser": mapped_adv, "Channel": mapped_chan, "Spend": spend, "Date": date})
+            # Pathmatics (assume Daily Spend is a pivot table: dates as rows, channels as columns, spend as values)
+            if "Cover" in xl.sheet_names and "Daily Spend" in xl.sheet_names:
+                cover = xl.parse("Cover", header=None)
+                adv_val = advertiser_map.get(str(cover.iloc[3, 1]), str(cover.iloc[3, 1])) if pd.notnull(cover.iloc[3, 1]) else None  # B4
+                spend = xl.parse("Daily Spend", header=None)
+                if spend.shape[0] > 1 and spend.shape[1] > 1:
+                    for i in range(1, spend.shape[0]):  # Skip header row
+                        date = spend.iloc[i, 0]
+                        for j in range(1, spend.shape[1]):
+                            chan = spend.iloc[0, j]
+                            mapped_chan = channel_map.get(str(chan), str(chan))
+                            val = pd.to_numeric(spend.iloc[i, j], errors="coerce")
+                            all_rows.append({"Advertiser": adv_val, "Channel": mapped_chan, "Spend": val, "Date": date})
+        except Exception:
+            continue
+    agg_df = pd.DataFrame(all_rows)
+    agg_df = agg_df.dropna(subset=["Spend"])
+    agg_df["Spend"] = agg_df["Spend"].astype(float)
+    return agg_df
 
 # ---- Sidebar Branding and Logo ----
 if os.path.exists(MONKS_LOGO_PATH):
@@ -163,16 +202,42 @@ if st.session_state.get("advertiser_mappings") and len(st.session_state["adverti
         primary = st.selectbox("Select the primary advertiser", mapped_advertisers)
         st.session_state["primary_advertiser"] = primary
 
-# ---- Step 5: Dashboard and export stub ----
+# ---- Step 5: Dashboard and export with aggregation/visualization ----
 if st.session_state.get("primary_advertiser"):
     st.header("Dashboard")
     st.success(f"Primary Advertiser: {st.session_state['primary_advertiser']}")
     st.write("Date Range:", st.session_state.get("start_date"), "to", st.session_state.get("end_date"))
     st.write("Advertiser Mappings:", st.session_state.get("advertiser_mappings"))
     st.write("Channel Mappings:", st.session_state.get("channel_mappings"))
-    st.info("Charts, stats, and insights would appear here. [TODO: Implement aggregation and visualization]")
 
-    # Export option (stub)
-    export_format = st.selectbox("Export report as:", ["xlsx", "csv", "pdf", "png"])
-    if st.button("Export"):
-        st.info(f"Exporting as {export_format}... [TODO: Implement export logic]")
+    # --- AGGREGATION & VISUALIZATION ---
+    with st.spinner("Aggregating and visualizing..."):
+        agg_df = aggregate_and_prepare(
+            st.session_state.get("uploaded_files", []),
+            st.session_state.get("advertiser_mappings", {}),
+            st.session_state.get("channel_mappings", {})
+        )
+        st.session_state["aggregated_data"] = agg_df
+
+    if agg_df is not None and not agg_df.empty:
+        st.subheader("Key Stats")
+        total_spend = agg_df["Spend"].sum()
+        st.metric("Total Spend (All Advertisers)", f"${total_spend:,.2f}")
+
+        spend_by_adv = agg_df.groupby("Advertiser")["Spend"].sum().sort_values(ascending=False)
+        spend_by_chan = agg_df.groupby("Channel")["Spend"].sum().sort_values(ascending=False)
+
+        st.subheader("Spend by Advertiser")
+        st.bar_chart(spend_by_adv)
+
+        st.subheader("Spend by Channel")
+        st.bar_chart(spend_by_chan)
+
+        st.subheader("Top 10 Advertiser-Channel Pairs")
+        pivot = agg_df.groupby(["Advertiser", "Channel"])["Spend"].sum().reset_index()
+        top_pairs = pivot.sort_values("Spend", ascending=False).head(10)
+        st.dataframe(top_pairs, use_container_width=True)
+
+        # Time-series if Date column is good
+        if "
+
