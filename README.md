@@ -1,10 +1,11 @@
 # Competitive Ad Spend Analysis Dashboard
 
 This Streamlit app enables robust competitive media mix analysis using Nielsen Ad Intel and Pathmatics data.  
-It supports uploading and parsing multiple Excel files, mapping advertiser and channel names, selecting a primary advertiser, and setting analysis date ranges. The app also supports branded, multi-format exports.
+It supports uploading and parsing multiple Excel files, mapping advertiser and channel names, selecting a primary advertiser, and setting analysis date ranges. The app also supports branded, multi-client dashboarding and export options (coming soon).
 
 ## Features
 
+- Loading progress bar at the start of the app for improved UX.
 - Upload one or more Nielsen Ad Intel and Pathmatics Excel files (`.xls` or `.xlsx`).
 - Automatic extraction and mapping of advertiser and media channel names.
 - Interactive UI for renaming advertisers and channels.
