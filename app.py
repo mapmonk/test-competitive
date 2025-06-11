@@ -59,7 +59,7 @@ def extract_advertisers_and_channels(filepaths):
     return sorted(advertisers), sorted(channels), errors
 
 # Sidebar branding and logo
-st.sidebar.image(MONKS_LOGO_PATH, use_column_width=True)
+st.sidebar.image(MONKS_LOGO_PATH, use_container_width=True)
 
 # Step 1: File upload
 st.title("Competitive Ad Spend Analysis Dashboard")
