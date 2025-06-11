@@ -47,7 +47,7 @@ streamlit run app.py
 
 ## Critical Notes
 
-- The app **will not run** unless all required dependencies are installed. If a dependency is missing, the app will stop and provide installation instructions.
+- The app **will not run** unless all required dependencies are installed. If a dependency is missing, the app will stop and provide installation instructions, including for `streamlit-extras`.
 - Only Excel (`.xlsx`) files are supported for upload.
 - On each step, input validation ensures critical fields are completed before you can proceed.
 - All session state is managed defensively to prevent navigation or data errors.
@@ -63,7 +63,7 @@ streamlit run app.py
 
 ## Troubleshooting
 
-- If you see an error about a missing package, run the `pip install ...` command shown in the error message.
+- If you see an error about a missing package, run the `pip install ...` command shown in the error message (e.g., for `streamlit-extras`, run `pip install streamlit-extras`).
 - If you encounter unexpected app behavior, refresh your browser or restart the app.
 
 ## License
