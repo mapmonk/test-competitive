@@ -1,6 +1,6 @@
-streamlit
-pandas
-openpyxl
-XlsxWriter
-matplotlib
-reportlab
+streamlit>=1.25
+plotly>=5.15
+streamlit-extras>=0.3.0
+pandas>=1.3
+openpyxl>=3.0
+reportlab>=3.6
