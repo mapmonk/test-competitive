@@ -13,18 +13,19 @@ CLIENT_LOGO_PATH = "static/client_logo.png"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Session state initialization
-if "uploaded_files" not in st.session_state:
-    st.session_state.uploaded_files = []
-if "advertiser_mappings" not in st.session_state:
-    st.session_state.advertiser_mappings = {}
-if "channel_mappings" not in st.session_state:
-    st.session_state.channel_mappings = {}
-if "start_date" not in st.session_state:
-    st.session_state.start_date = None
-if "end_date" not in st.session_state:
-    st.session_state.end_date = None
-if "primary_advertiser" not in st.session_state:
-    st.session_state.primary_advertiser = ""
+for key, default in [
+    ("uploaded_files", []),
+    ("advertiser_mappings", {}),
+    ("channel_mappings", {}),
+    ("start_date", None),
+    ("end_date", None),
+    ("primary_advertiser", ""),
+    ("advertisers", []),
+    ("channels", []),
+    ("file_read_error", None),
+]:
+    if key not in st.session_state:
+        st.session_state[key] = default
 
 # Utility functions
 def allowed_file(filename):
@@ -36,6 +37,26 @@ def save_upload(uploadedfile):
     with open(filepath, "wb") as f:
         f.write(uploadedfile.getbuffer())
     return filepath
+
+def extract_advertisers_and_channels(filepaths):
+    advertisers = set()
+    channels = set()
+    errors = []
+    for path in filepaths:
+        try:
+            df = pd.read_excel(path)
+            # Adjust these column names if your actual files differ
+            if 'Advertiser' in df.columns:
+                advertisers.update(df['Advertiser'].dropna().astype(str).unique())
+            else:
+                errors.append(f"File '{os.path.basename(path)}' is missing 'Advertiser' column.")
+            if 'Channel' in df.columns:
+                channels.update(df['Channel'].dropna().astype(str).unique())
+            else:
+                errors.append(f"File '{os.path.basename(path)}' is missing 'Channel' column.")
+        except Exception as e:
+            errors.append(f"Error reading '{os.path.basename(path)}': {e}")
+    return sorted(advertisers), sorted(channels), errors
 
 # Sidebar branding and logo
 st.sidebar.image(MONKS_LOGO_PATH, use_column_width=True)
@@ -50,55 +71,73 @@ if uploaded_files:
     filepaths = []
     for f in uploaded_files:
         if allowed_file(f.name):
-            path = save_upload(f)
-            filepaths.append(path)
+            try:
+                path = save_upload(f)
+                filepaths.append(path)
+            except Exception as e:
+                st.error(f"Failed to save {f.name}: {e}")
+        else:
+            st.error(f"File '{f.name}' is not a supported Excel file.")
     st.session_state.uploaded_files = filepaths
-    st.success("Files uploaded successfully!")
 
-# Step 2: Mapping (stub UI)
-if st.session_state.uploaded_files:
+    # Extract advertisers and channels
+    if filepaths:
+        advertisers, channels, errors = extract_advertisers_and_channels(filepaths)
+        st.session_state.advertisers = advertisers
+        st.session_state.channels = channels
+        st.session_state.file_read_error = errors
+        if errors:
+            for err in errors:
+                st.error(err)
+        elif not (advertisers and channels):
+            st.warning("No advertisers or channels found in the uploaded files.")
+        else:
+            st.success("Files uploaded and parsed successfully!")
+
+# Step 2: Mapping (dynamic UI)
+if st.session_state.get("uploaded_files") and st.session_state.get("advertisers") and st.session_state.get("channels"):
     st.header("Step 2: Advertiser and Channel Mapping")
-    st.info("This step would parse uploaded files and show mapping UI. [TODO: Implement parsing and mapping]")
-
-    # Example: Show a mapping interface (for demo)
-    advertisers = ["AdvertiserA", "AdvertiserB", "AdvertiserC"]
-    channels = ["ChannelX", "ChannelY", "ChannelZ"]
+    st.info("Map each advertiser and channel to your preferred names.")
 
     adv_map = {}
     chan_map = {}
-    for adv in advertisers:
+    for adv in st.session_state.advertisers:
         adv_map[adv] = st.text_input(f"Map advertiser '{adv}' to:", value=adv)
-    for chan in channels:
+    for chan in st.session_state.channels:
         chan_map[chan] = st.text_input(f"Map channel '{chan}' to:", value=chan)
 
-    st.session_state.advertiser_mappings = adv_map
-    st.session_state.channel_mappings = chan_map
+    st.session_state["advertiser_mappings"] = adv_map
+    st.session_state["channel_mappings"] = chan_map
+
+elif st.session_state.file_read_error:
+    st.warning("Please fix the file issues above before proceeding.")
 
 # Step 3: Date range
-if st.session_state.advertiser_mappings:
+if st.session_state.get("advertiser_mappings") and len(st.session_state["advertiser_mappings"]) > 0:
     st.header("Step 3: Set Date Range")
     col1, col2 = st.columns(2)
     with col1:
         start_date = st.date_input("Start Date", value=datetime.today())
     with col2:
         end_date = st.date_input("End Date", value=datetime.today())
-    st.session_state.start_date = str(start_date)
-    st.session_state.end_date = str(end_date)
+    st.session_state["start_date"] = str(start_date)
+    st.session_state["end_date"] = str(end_date)
 
 # Step 4: Primary advertiser
-if st.session_state.advertiser_mappings:
+if st.session_state.get("advertiser_mappings") and len(st.session_state["advertiser_mappings"]) > 0:
     st.header("Step 4: Choose Primary Advertiser")
-    mapped_advertisers = list(st.session_state.advertiser_mappings.values())
-    primary = st.selectbox("Select the primary advertiser", mapped_advertisers)
-    st.session_state.primary_advertiser = primary
+    mapped_advertisers = list(st.session_state["advertiser_mappings"].values())
+    if mapped_advertisers:
+        primary = st.selectbox("Select the primary advertiser", mapped_advertisers)
+        st.session_state["primary_advertiser"] = primary
 
 # Step 5: Dashboard and export stub
-if st.session_state.primary_advertiser:
+if st.session_state.get("primary_advertiser"):
     st.header("Dashboard")
-    st.success(f"Primary Advertiser: {st.session_state.primary_advertiser}")
-    st.write("Date Range:", st.session_state.start_date, "to", st.session_state.end_date)
-    st.write("Advertiser Mappings:", st.session_state.advertiser_mappings)
-    st.write("Channel Mappings:", st.session_state.channel_mappings)
+    st.success(f"Primary Advertiser: {st.session_state['primary_advertiser']}")
+    st.write("Date Range:", st.session_state.get("start_date"), "to", st.session_state.get("end_date"))
+    st.write("Advertiser Mappings:", st.session_state.get("advertiser_mappings"))
+    st.write("Channel Mappings:", st.session_state.get("channel_mappings"))
     st.info("Charts, stats, and insights would appear here. [TODO: Implement aggregation and visualization]")
 
     # Export option (stub)
@@ -113,7 +152,7 @@ if client_logo is not None:
     client_logo_path = os.path.join("static", "client_logo.png")
     with open(client_logo_path, "wb") as f:
         f.write(client_logo.getbuffer())
-    st.session_state.client_logo = client_logo_path
+    st.session_state["client_logo"] = client_logo_path
     st.sidebar.image(client_logo_path, width=100)
 elif os.path.exists(CLIENT_LOGO_PATH):
     st.sidebar.image(CLIENT_LOGO_PATH, width=100)
