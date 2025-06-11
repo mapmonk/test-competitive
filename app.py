@@ -2,7 +2,7 @@ import streamlit as st
 import datetime
 import pandas as pd
 
-# Absolutely critical: Dependency checks
+# Dependency checks
 try:
     import plotly.express as px
 except ImportError:
@@ -17,8 +17,6 @@ except ImportError:
     st.error("Please install reportlab: pip install reportlab")
     st.stop()
 
-import random
-
 # Helper for robust session state access
 def get_state(key, default=None):
     return st.session_state.get(key, default)
@@ -26,9 +24,9 @@ def get_state(key, default=None):
 def set_state(key, value):
     st.session_state[key] = value
 
-# --- Step Progress Bar (Native Streamlit alternative) ---
-def streamlit_step_bar(current_step, total_steps, steps_labels):
-    cols = st.columns(total_steps)
+# --- Step Progress Bar (Native Streamlit) ---
+def streamlit_step_bar(current_step, steps_labels):
+    cols = st.columns(len(steps_labels))
     for idx, col in enumerate(cols):
         if idx < current_step:
             col.success(f"✓ {steps_labels[idx]}")
@@ -42,12 +40,11 @@ steps_labels = [
     "Date Range", "Primary Adv", "Dashboard"
 ]
 current_step = get_state("current_step", 0)
-streamlit_step_bar(current_step, len(steps_labels), steps_labels)
+streamlit_step_bar(current_step, steps_labels)
 
-# --- Step Navigation (Critical: prevents broken flow) ---
+# --- Step Navigation ---
 def go_to_step(step):
     set_state("current_step", step)
-    st.experimental_rerun()
 
 # Sample demo data for illustration
 demo_advertisers = ["Adv1", "Adv2", "Adv3"]
@@ -59,9 +56,10 @@ if current_step == 0:
     uploaded_files = st.file_uploader("Upload Excel files", type=["xlsx"], accept_multiple_files=True)
     if uploaded_files:
         set_state("uploaded_files", uploaded_files)
-        st.button("Continue", on_click=go_to_step, args=(1,))
+        if st.button("Continue"):
+            go_to_step(1)
     else:
-        st.button("Continue", on_click=go_to_step, args=(1,), disabled=True)
+        st.button("Continue", disabled=True)
 
 # --- Step 2: Advertiser Map ---
 elif current_step == 1:
@@ -71,11 +69,13 @@ elif current_step == 1:
     adv_map_edit = st.data_editor(adv_map_df, num_rows="dynamic")
     if adv_map_edit["Mapped"].isnull().any() or adv_map_edit["Mapped"].eq("").any():
         st.warning("All advertisers must be mapped before continuing.")
-        st.button("Continue", on_click=go_to_step, args=(2,), disabled=True)
+        st.button("Continue", disabled=True)
     else:
         set_state("adv_map", dict(zip(adv_map_edit["Original"], adv_map_edit["Mapped"])))
-        st.button("Continue", on_click=go_to_step, args=(2,))
-    st.button("Back", on_click=go_to_step, args=(0,))
+        if st.button("Continue"):
+            go_to_step(2)
+    if st.button("Back"):
+        go_to_step(0)
 
 # --- Step 3: Channel Map ---
 elif current_step == 2:
@@ -85,11 +85,13 @@ elif current_step == 2:
     ch_map_edit = st.data_editor(ch_map_df, num_rows="dynamic")
     if ch_map_edit["Mapped"].isnull().any() or ch_map_edit["Mapped"].eq("").any():
         st.warning("All channels must be mapped before continuing.")
-        st.button("Continue", on_click=go_to_step, args=(3,), disabled=True)
+        st.button("Continue", disabled=True)
     else:
         set_state("ch_map", dict(zip(ch_map_edit["Original"], ch_map_edit["Mapped"])))
-        st.button("Continue", on_click=go_to_step, args=(3,))
-    st.button("Back", on_click=go_to_step, args=(1,))
+        if st.button("Continue"):
+            go_to_step(3)
+    if st.button("Back"):
+        go_to_step(1)
 
 # --- Step 4: Channel Colors ---
 elif current_step == 3:
@@ -98,8 +100,10 @@ elif current_step == 3:
     if not channels:
         st.error("No channels mapped. Please complete channel mapping.")
         st.stop()
-    # Ensure color state exists for all channels (critical)
-    default_palette = ["#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f", "#edc949", "#af7aa1", "#ff9da7", "#9c755f", "#bab0ab"]
+    default_palette = [
+        "#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f",
+        "#edc949", "#af7aa1", "#ff9da7", "#9c755f", "#bab0ab"
+    ]
     channel_colors = get_state("channel_colors", {})
     for i, ch in enumerate(channels):
         if ch not in channel_colors:
@@ -111,10 +115,12 @@ elif current_step == 3:
     missing_colors = [ch for ch in channels if not channel_colors.get(ch)]
     if missing_colors:
         st.error("Please select a color for all channels before continuing.")
-        st.button("Continue", on_click=go_to_step, args=(4,), disabled=True)
+        st.button("Continue", disabled=True)
     else:
-        st.button("Continue", on_click=go_to_step, args=(4,))
-    st.button("Back", on_click=go_to_step, args=(2,))
+        if st.button("Continue"):
+            go_to_step(4)
+    if st.button("Back"):
+        go_to_step(2)
 
 # --- Step 5: Date Range ---
 elif current_step == 4:
@@ -122,11 +128,13 @@ elif current_step == 4:
     date_range = st.date_input("Date Range", value=(datetime.date(2024, 1, 1), datetime.date(2024, 12, 31)))
     if not date_range or len(date_range) != 2 or not all(date_range):
         st.warning("Please select both a start and end date before continuing.")
-        st.button("Continue", on_click=go_to_step, args=(5,), disabled=True)
+        st.button("Continue", disabled=True)
     else:
         set_state("date_range", date_range)
-        st.button("Continue", on_click=go_to_step, args=(5,))
-    st.button("Back", on_click=go_to_step, args=(3,))
+        if st.button("Continue"):
+            go_to_step(5)
+    if st.button("Back"):
+        go_to_step(3)
 
 # --- Step 6: Primary Advertiser ---
 elif current_step == 5:
@@ -138,8 +146,10 @@ elif current_step == 5:
         st.stop()
     primary_adv = st.selectbox("Select primary advertiser", adv_display)
     set_state("primary_adv", primary_adv)
-    st.button("Continue", on_click=go_to_step, args=(6,))
-    st.button("Back", on_click=go_to_step, args=(4,))
+    if st.button("Continue"):
+        go_to_step(6)
+    if st.button("Back"):
+        go_to_step(4)
 
 # --- Step 7: Dashboard ---
 elif current_step == 6:
@@ -216,4 +226,5 @@ elif current_step == 6:
     pdf_buffer = create_pdf(df, primary_adv, date_range)
     st.download_button("Export Dashboard as PDF", data=pdf_buffer, file_name="dashboard.pdf", mime="application/pdf")
 
-    st.button("Back", on_click=go_to_step, args=(5,))
+    if st.button("Back"):
+        go_to_step(5)
