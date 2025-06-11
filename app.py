@@ -239,5 +239,50 @@ if st.session_state.get("primary_advertiser"):
         st.dataframe(top_pairs, use_container_width=True)
 
         # Time-series if Date column is good
-        if "
-
+        if "Date" in agg_df.columns:
+            try:
+                temp = agg_df.copy()
+                temp["Date"] = pd.to_datetime(temp["Date"], errors="coerce")
+                temp = temp.dropna(subset=["Date"])
+                ts = temp.groupby(["Date", "Advertiser"])["Spend"].sum().reset_index()
+                st.subheader("Spend Over Time (Primary Advertiser)")
+                ts_primary = ts[ts["Advertiser"] == st.session_state["primary_advertiser"]]
+                fig, ax = plt.subplots()
+                ax.plot(ts_primary["Date"], ts_primary["Spend"], marker="o")
+                ax.set_xlabel("Date")
+                ax.set_ylabel("Spend")
+                ax.set_title(f"Spend Over Time: {st.session_state['primary_advertiser']}")
+                st.pyplot(fig)
+            except Exception:
+                pass
+
+        st.subheader("Aggregated Data Table")
+        st.dataframe(agg_df, use_container_width=True)
+    else:
+        st.info("No data available for aggregation/visualization. Please check your uploads and mappings.")
+
+    # Export option
+    export_format = st.selectbox("Export report as:", ["xlsx", "csv"])
+    if st.button("Export"):
+        if agg_df is not None and not agg_df.empty:
+            if export_format == "csv":
+                st.download_button(
+                    label="Download CSV",
+                    data=agg_df.to_csv(index=False),
+                    file_name="aggregated_report.csv",
+                    mime="text/csv"
+                )
+            elif export_format == "xlsx":
+                import io
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+                    agg_df.to_excel(writer, index=False, sheet_name="Aggregated Data")
+                output.seek(0)
+                st.download_button(
+                    label="Download Excel",
+                    data=output,
+                    file_name="aggregated_report.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+        else:
+            st.warning("Nothing to export!")
