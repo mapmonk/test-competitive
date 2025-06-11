@@ -1,77 +1,49 @@
-# Advertiser Media Mix Dashboard
+# [Primary Advertiser Name] Competitor Ad Spend Analysis Dashboard
 
-A web-based dashboard (built with [Streamlit](https://streamlit.io/)) that allows users to upload multiple media spend reports (from Nielsen, Pathmatics, SEM Rush, etc.), aggregate and visualize advertiser media mixes, and compare spend patterns between a primary advertiser and its competitors.
+This web app enables robust competitive media mix analysis using Nielsen Ad Intel and Pathmatics data.  
+It supports merging/normalizing advertiser and channel names, comparison of multiple competitors, and branded, multi-format exports.
 
 ## Features
 
-- **Multi-file Upload:** Upload multiple Excel files at once from different sources (Nielsen, Pathmatics, SEM Rush).
-- **Automatic Data Aggregation:** All files are merged and standardized for analysis.
-- **Advertiser and Competitor Analysis:** Select a primary advertiser; others are treated as competitors for benchmarking.
-- **Visualizations:** One pie chart per advertiser, showing media mix by channel (with custom channel grouping/filtering).
-- **Dynamic Filtering:** Filter by media channel and create custom channel groupings directly in the UI.
-- **Summary Statistics:** Bulleted summary highlights similarities and differences in media mix between your primary advertiser and competitors, and ranks the primary advertiser by total spend.
-- **Export:** Download filtered/grouped data as Excel, and pie charts as PNG images.
+- Upload Nielsen Ad Intel and Pathmatics files.
+- Merge and standardize advertiser and media channel names (with persistent mappings).
+- Set a primary advertiser; compare against competitors.
+- Interactive dashboard with media mix pie charts, summary statistics, and automated insights.
+- Export results to Excel, CSV, PDF (with charts and insights), and PNG (charts).
+- Branding: Monks logo preset, with option to upload a client logo for report exports.
+- All exports titled:  
+  `[Primary Advertiser Name] Competitor Ad Spend Analysis - [start date] to [end date]`
 
-## Getting Started
+## Setup
 
-### 1. Clone the repository
+1. Clone this repository.
+2. Place the Monks logo in `static/monks_logo.png`.
+3. Install dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+4. Run the app:
+   ```
+   python app.py
+   ```
+5. Open `http://127.0.0.1:5000` in your browser.
 
-```bash
-git clone <YOUR_REPO_URL>
-cd <YOUR_REPO_NAME>
-```
+## Usage
 
-### 2. Install dependencies
+1. Upload your Nielsen and Pathmatics files (Excel format).
+2. Merge/rename advertisers and channels as needed.
+3. Input the start & end date of your data set.
+4. Choose your primary advertiser.
+5. View the dashboard for comparisons, insights, and charts.
+6. Export results in your preferred format and branding.
 
-```bash
-pip install -r requirements.txt
-```
+## Notes
 
-### 3. Run the app
-
-```bash
-streamlit run app.py
-```
-
-### 4. Using the Dashboard
-
-- **Upload Files:** Click the file uploader and select your Excel files from Nielsen, Pathmatics, SEM Rush, etc.
-- **Select Primary Advertiser:** Choose your main brand for comparison.
-- **Filter/Group Media Channels:** Use the sidebar options to filter channels or group them into custom categories.
-- **Review Visualizations:** Explore side-by-side pie charts for each advertiser.
-- **Read the Summary:** See bulleted insights on similarities, differences, and rankings.
-- **Download Data or Charts:** Use the download buttons to export your current view as an Excel file or PNG image.
-
-## File Format Requirements
-
-- **Nielsen/Pathmatics:** Excel files should include at least columns for `Advertiser`, `Media Channel`, and `Spend`.
-- **SEM Rush or Custom:** Files with different column names may require minor adaptation in the code (see `app.py`).
-- All spend should be numeric and in the same currency.
-
-## Customization
-
-To adapt for additional file types or new data formats, update the placeholder functions in `app.py`:
-- `parse_nielsen()`
-- `parse_pathmatics()`
-- `parse_semrush()`
-
-Each should return a DataFrame with standardized columns: `Advertiser`, `Media Channel`, `Spend`, etc.
-
-## Dependencies
-
-See [requirements.txt](./requirements.txt).
-
-- streamlit
-- pandas
-- numpy
-- matplotlib
-- openpyxl
-- xlsxwriter
+- Advertiser/channel mapping is persisted for future sessions (in-memory for demo; use a DB for production).
+- All outputs and exports are branded with the Monks logo and (optionally) your client’s logo.
+- File and report titles are dynamically generated, e.g.:  
+  `Shipt Competitor Ad Spend Analysis - 2025-01-01 to 2025-03-31.pdf`
 
 ## License
 
-MIT
-
----
-
-For questions or feature requests, please open an issue or contact the maintainer.
+[Specify your license here]
