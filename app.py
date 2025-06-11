@@ -8,7 +8,7 @@ st.set_page_config(page_title="Competitive Ad Spend Analysis", layout="wide")
 
 # Paths and folders
 UPLOAD_FOLDER = "uploads"
-MONKS_LOGO_PATH = "main/monks_logo.png"
+MONKS_LOGO_PATH = "monks_logo.png"
 CLIENT_LOGO_PATH = "static/client_logo.png"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
