@@ -1,8 +1,4 @@
 streamlit
 pandas
-openpyxl
-XlsxWriter
 matplotlib
-jinja2
-reportlab
-python-docx
+openpyxl
