@@ -1,89 +1,119 @@
-import os
-from flask import Flask, render_template, request, redirect, url_for, send_file, session
-from werkzeug.utils import secure_filename
-from datetime import datetime
+import streamlit as st
 import pandas as pd
+import os
+from datetime import datetime
 
-app = Flask(__name__)
-app.secret_key = "replace_with_a_secure_random_key"
+# App config
+st.set_page_config(page_title="Competitive Ad Spend Analysis", layout="wide")
+
+# Paths and folders
 UPLOAD_FOLDER = "uploads"
+MONKS_LOGO_PATH = "static/monks_logo.png"
+CLIENT_LOGO_PATH = "static/client_logo.png"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# In-memory persistent mappings for advertisers and channels (replace with DB in prod)
-advertiser_mappings = {}
-channel_mappings = {}
+# Session state initialization
+if "uploaded_files" not in st.session_state:
+    st.session_state.uploaded_files = []
+if "advertiser_mappings" not in st.session_state:
+    st.session_state.advertiser_mappings = {}
+if "channel_mappings" not in st.session_state:
+    st.session_state.channel_mappings = {}
+if "start_date" not in st.session_state:
+    st.session_state.start_date = None
+if "end_date" not in st.session_state:
+    st.session_state.end_date = None
+if "primary_advertiser" not in st.session_state:
+    st.session_state.primary_advertiser = ""
 
-# Persistent logo paths
-MONKS_LOGO_PATH = "static/monks_logo.png"  # Place your logo as static/monks_logo.png
-
+# Utility functions
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ['xlsx', 'xls']
 
-@app.route('/')
-def index():
-    return render_template('index.html', monks_logo=MONKS_LOGO_PATH)
+def save_upload(uploadedfile):
+    filename = uploadedfile.name
+    filepath = os.path.join(UPLOAD_FOLDER, filename)
+    with open(filepath, "wb") as f:
+        f.write(uploadedfile.getbuffer())
+    return filepath
 
-@app.route('/upload', methods=['POST'])
-def upload_files():
-    if 'files[]' not in request.files:
-        return redirect(request.url)
-    files = request.files.getlist('files[]')
-    session['uploaded_files'] = []
-    for file in files:
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(path)
-            session['uploaded_files'].append(path)
-    return redirect(url_for('step1_mapping'))
+# Sidebar branding and logo
+st.sidebar.image(MONKS_LOGO_PATH, use_column_width=True)
 
-@app.route('/step1-mapping', methods=['GET', 'POST'])
-def step1_mapping():
-    # TODO: Parse uploads, extract advertiser and channel names, present merge UI
-    # Example: Load all advertisers/channels, show mapping interface
-    # Save results to advertiser_mappings and channel_mappings
-    return render_template('step1_mapping.html', monks_logo=MONKS_LOGO_PATH)
+# Step 1: File upload
+st.title("Competitive Ad Spend Analysis Dashboard")
+st.header("Step 1: Upload Excel Files")
+uploaded_files = st.file_uploader(
+    "Upload one or more Excel files", type=['xlsx', 'xls'], accept_multiple_files=True
+)
+if uploaded_files:
+    filepaths = []
+    for f in uploaded_files:
+        if allowed_file(f.name):
+            path = save_upload(f)
+            filepaths.append(path)
+    st.session_state.uploaded_files = filepaths
+    st.success("Files uploaded successfully!")
 
-@app.route('/set-date-range', methods=['POST'])
-def set_date_range():
-    start_date = request.form.get('start_date')
-    end_date = request.form.get('end_date')
-    session['start_date'] = start_date
-    session['end_date'] = end_date
-    return redirect(url_for('choose_primary'))
+# Step 2: Mapping (stub UI)
+if st.session_state.uploaded_files:
+    st.header("Step 2: Advertiser and Channel Mapping")
+    st.info("This step would parse uploaded files and show mapping UI. [TODO: Implement parsing and mapping]")
 
-@app.route('/choose-primary', methods=['GET', 'POST'])
-def choose_primary():
-    if request.method == 'POST':
-        session['primary_advertiser'] = request.form.get('primary_advertiser')
-        return redirect(url_for('dashboard'))
-    # TODO: Present mapped advertiser list for primary selection
-    return render_template('choose_primary.html', monks_logo=MONKS_LOGO_PATH)
+    # Example: Show a mapping interface (for demo)
+    advertisers = ["AdvertiserA", "AdvertiserB", "AdvertiserC"]
+    channels = ["ChannelX", "ChannelY", "ChannelZ"]
 
-@app.route('/dashboard')
-def dashboard():
-    # TODO: Aggregate, normalize, and display charts, stats, insights
-    # Use session['primary_advertiser'], mappings, and uploaded files
-    # Provide export options
-    return render_template('dashboard.html', monks_logo=MONKS_LOGO_PATH)
+    adv_map = {}
+    chan_map = {}
+    for adv in advertisers:
+        adv_map[adv] = st.text_input(f"Map advertiser '{adv}' to:", value=adv)
+    for chan in channels:
+        chan_map[chan] = st.text_input(f"Map channel '{chan}' to:", value=chan)
 
-@app.route('/export/<format>')
-def export_report(format):
-    # TODO: Generate and serve report in the requested format (xlsx, csv, pdf, png)
-    # Use session data for mappings, date range, etc.
-    # Compose filename as "[Primary Advertiser Name] Competitor Ad Spend Analysis - [start date] to [end date].ext"
-    pass
+    st.session_state.advertiser_mappings = adv_map
+    st.session_state.channel_mappings = chan_map
 
-@app.route('/upload-client-logo', methods=['POST'])
-def upload_client_logo():
-    file = request.files['client_logo']
-    if file:
-        filename = "client_logo.png"
-        path = os.path.join("static", filename)
-        file.save(path)
-        session['client_logo'] = path
-    return redirect(request.referrer or url_for('dashboard'))
+# Step 3: Date range
+if st.session_state.advertiser_mappings:
+    st.header("Step 3: Set Date Range")
+    col1, col2 = st.columns(2)
+    with col1:
+        start_date = st.date_input("Start Date", value=datetime.today())
+    with col2:
+        end_date = st.date_input("End Date", value=datetime.today())
+    st.session_state.start_date = str(start_date)
+    st.session_state.end_date = str(end_date)
 
-if __name__ == "__main__":
-    app.run(debug=True)
+# Step 4: Primary advertiser
+if st.session_state.advertiser_mappings:
+    st.header("Step 4: Choose Primary Advertiser")
+    mapped_advertisers = list(st.session_state.advertiser_mappings.values())
+    primary = st.selectbox("Select the primary advertiser", mapped_advertisers)
+    st.session_state.primary_advertiser = primary
+
+# Step 5: Dashboard and export stub
+if st.session_state.primary_advertiser:
+    st.header("Dashboard")
+    st.success(f"Primary Advertiser: {st.session_state.primary_advertiser}")
+    st.write("Date Range:", st.session_state.start_date, "to", st.session_state.end_date)
+    st.write("Advertiser Mappings:", st.session_state.advertiser_mappings)
+    st.write("Channel Mappings:", st.session_state.channel_mappings)
+    st.info("Charts, stats, and insights would appear here. [TODO: Implement aggregation and visualization]")
+
+    # Export option (stub)
+    export_format = st.selectbox("Export report as:", ["xlsx", "csv", "pdf", "png"])
+    if st.button("Export"):
+        st.info(f"Exporting as {export_format}... [TODO: Implement export logic]")
+
+# Client logo upload in sidebar
+st.sidebar.header("Upload Client Logo")
+client_logo = st.sidebar.file_uploader("Client Logo (PNG)", type=['png'])
+if client_logo is not None:
+    client_logo_path = os.path.join("static", "client_logo.png")
+    with open(client_logo_path, "wb") as f:
+        f.write(client_logo.getbuffer())
+    st.session_state.client_logo = client_logo_path
+    st.sidebar.image(client_logo_path, width=100)
+elif os.path.exists(CLIENT_LOGO_PATH):
+    st.sidebar.image(CLIENT_LOGO_PATH, width=100)
