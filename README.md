@@ -4,7 +4,7 @@ This app provides a step-by-step workflow for competitive ad spend analysis, ena
 
 ## Features
 
-- **Step-by-step workflow** with progress indicator
+- **Step-by-step workflow** with custom progress indicator
 - **Data upload** and preview (Excel files)
 - **Bulk mapping** of advertisers and channels
 - **Channel color assignment** with color picker
@@ -20,7 +20,6 @@ This app provides a step-by-step workflow for competitive ad spend analysis, ena
 - **Python 3.8+**
 - [Streamlit](https://streamlit.io/)
 - [plotly](https://plotly.com/python/)
-- [streamlit-extras](https://github.com/okld/streamlit-extras)
 - pandas
 - openpyxl
 - **reportlab** (for PDF export)
@@ -36,7 +35,7 @@ pip install -r requirements.txt
 Or install individually:
 
 ```bash
-pip install streamlit plotly streamlit-extras pandas openpyxl reportlab
+pip install streamlit plotly pandas openpyxl reportlab
 ```
 
 ## Usage
@@ -47,10 +46,11 @@ streamlit run app.py
 
 ## Critical Notes
 
-- The app **will not run** unless all required dependencies are installed. If a dependency is missing, the app will stop and provide installation instructions, including for `streamlit-extras`.
+- The app **will not run** unless all required dependencies are installed. If a dependency is missing, the app will stop and provide installation instructions.
 - Only Excel (`.xlsx`) files are supported for upload.
 - On each step, input validation ensures critical fields are completed before you can proceed.
 - All session state is managed defensively to prevent navigation or data errors.
+- The progress bar is implemented using only native Streamlit components.
 
 ## Example Workflow
 
@@ -63,7 +63,7 @@ streamlit run app.py
 
 ## Troubleshooting
 
-- If you see an error about a missing package, run the `pip install ...` command shown in the error message (e.g., for `streamlit-extras`, run `pip install streamlit-extras`).
+- If you see an error about a missing package, run the `pip install ...` command shown in the error message.
 - If you encounter unexpected app behavior, refresh your browser or restart the app.
 
 ## License
