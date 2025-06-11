@@ -1,72 +1,65 @@
-# Media Spend Competitive Analysis (Pie Charts)
+# Competitive Ad Spend Analysis Streamlit App
 
-This Streamlit app generates one pie chart **per advertiser**, showing each channel's % of total media spend. Channel colors are consistent across all advertisers.
-
----
+This app provides a step-by-step workflow for competitive ad spend analysis, enabling media planners to upload data, map advertiser/channel names, assign colors, set date ranges, and generate interactive dashboards with export options.
 
 ## Features
 
-- **Upload**: Excel (.xlsx) or CSV (.csv) files from Nielsen Ad Intel, Pathmatics, or similar.
-- **Visualization**: One pie chart per advertiser, showing each channel's % of spend.
-- **Color Legend**: Consistent, distinct colors for each channel across all charts.
-- **Automatic Handling**: Ignores missing/zero spend rows, automatic type conversion.
+- **Step-by-step workflow** with progress indicator
+- **Data upload** and preview (Excel files)
+- **Bulk mapping** of advertisers and channels
+- **Channel color assignment** with color picker
+- **Date range selection**
+- **Primary advertiser selection**
+- **Interactive dashboard** with Plotly charts
+- **Data export** (CSV, Excel)
+- **Session safety**: Robust error handling to prevent crashes
 
----
+## Requirements
 
-## Data Format
+- **Python 3.8+**
+- **[Streamlit](https://streamlit.io/)**
+- **[plotly](https://plotly.com/python/)**
+- **[streamlit-extras](https://github.com/okld/streamlit-extras)**
 
-Your file must have these columns (capitalization/spacing must match):
+## Installation
 
-| Advertiser | Channel | Spend |
-|------------|---------|-------|
-| AdvA       | TV      | 1000  |
-| AdvA       | Digital | 500   |
-| AdvB       | TV      | 2000  |
-| AdvB       | Digital | 800   |
+```bash
+pip install -r requirements.txt
+```
 
-- **Advertiser**: Name of the advertiser.
-- **Channel**: Marketing channel (e.g., TV, Digital, Radio, Social).
-- **Spend**: Numeric (no $ or %, just numbers).
+Or install individually:
 
----
+```bash
+pip install streamlit plotly streamlit-extras pandas
+```
 
-## How to Run
+## Usage
 
-1. Install dependencies:
+```bash
+streamlit run app.py
+```
 
-    ```
-    pip install -r requirements.txt
-    ```
+## Critical Notes
 
-2. Start the app:
+- The app **will not run** unless all required dependencies are installed. If a dependency is missing, the app will stop and provide installation instructions.
+- Only Excel (`.xlsx`) files are supported for upload.
+- On each step, input validation ensures critical fields are completed before you can proceed.
+- All session state is managed defensively to prevent navigation or data errors.
 
-    ```
-    streamlit run app.py
-    ```
+## Example Workflow
 
-3. Upload your `.xlsx` or `.csv` file using the uploader.
-
----
-
-## Example Files
-
-- Nielsen Ad Intel or Pathmatics exports are supported.
-- If your file uses different column names, edit in Excel so the first row matches: `Advertiser`, `Channel`, `Spend`.
-
----
+1. **Upload** your Excel ad spend files.
+2. **Map** advertiser and channel names as needed.
+3. **Assign colors** for each channel.
+4. **Select** your date range.
+5. **Choose** your primary advertiser.
+6. **View** interactive charts and export your data.
 
 ## Troubleshooting
 
-- **Missing columns**: Check that your file includes the required headers.
-- **Empty chart**: Check for blank/zero spend rows or wrong column names.
-- **Colors**: Up to 20 unique channels are supported per chart.
-
----
+- If you see an error about a missing package, run the `pip install ...` command shown in the error message.
+- If you encounter unexpected app behavior, refresh your browser or restart the app.
 
 ## License
 
 MIT
-
----
-
-Built for media and marketing analysts by [mapmonk/test-competitive](https://github.com/mapmonk/test-competitive).
