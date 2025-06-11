@@ -1,7 +1,7 @@
 # Competitive Ad Spend Analysis Dashboard
 
 This Streamlit app enables robust competitive media mix analysis using Nielsen Ad Intel and Pathmatics data.  
-It supports uploading and parsing multiple Excel files, mapping advertiser and channel names, selecting a primary advertiser, and setting analysis date ranges. The app also supports branded, multi-format exports (export logic is a placeholder/TODO).
+It supports uploading and parsing multiple Excel files, mapping advertiser and channel names, selecting a primary advertiser, and setting analysis date ranges. The app also supports branded, multi-step workflows, and exports.
 
 ## Features
 
@@ -10,8 +10,8 @@ It supports uploading and parsing multiple Excel files, mapping advertiser and c
 - Automatic extraction and mapping of advertiser and media channel names.
 - Interactive UI for renaming advertisers and channels.
 - Set a primary advertiser and select an analysis date range.
-- Dashboard view with context (charts and aggregation: TODO).
-- Export options for Excel, CSV, PDF, and PNG (charts and reports: TODO).
+- **Dashboard view with aggregation, charts, and insights (NEW!).**
+- Export options for Excel and CSV.
 - Monks logo preset in sidebar.
 
 ## Supported Excel File Formats
@@ -51,8 +51,8 @@ If a file does not match these formats, an error will be shown and that file wil
 2. **Advertiser & Channel Mapping:** Map extracted advertisers and channels to your preferred names.
 3. **Set Date Range:** Choose the start and end date for your analysis.
 4. **Select Primary Advertiser:** Identify your main brand for focused analysis.
-5. **Dashboard:** View summary information and (future) insights, charts, and comparisons.
-6. **Export:** Select your preferred export format (logic is a placeholder/TODO).
+5. **Dashboard:** View summary information, insights, charts, and comparisons.
+6. **Export:** Download aggregated data as Excel or CSV.
 
 ## Notes
 
@@ -61,7 +61,7 @@ If a file does not match these formats, an error will be shown and that file wil
 - Uploaded files are saved to the `uploaded_files/` directory during your session.
 - File, advertiser, and channel mapping is session-based (will reset on app restart).
 - All outputs and exports are branded with the Monks logo (no client logo upload yet).
-- Export and dashboard visualizations are currently placeholders (see TODOs in app.py).
+- Aggregation, charts, and dashboard visualizations are now implemented!
 
 ## License
 
