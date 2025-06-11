@@ -2,11 +2,27 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import datetime
+import time
 
-# App config
+# ---- Config ----
 st.set_page_config(page_title="Competitive Ad Spend Analysis", layout="wide")
 
-# Session state initialization
+# ---- Constants ----
+UPLOAD_FOLDER = "uploaded_files"
+MONKS_LOGO_PATH = "static/monks_logo.png"
+
+# Ensure upload directory exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# ---- Progress Bar at Startup ----
+progress_text = "Initializing session, please wait..."
+progress_bar = st.progress(0, text=progress_text)
+for percent_complete in range(60):
+    time.sleep(0.005)  # Simulate light loading, adjust as needed
+    progress_bar.progress(percent_complete + 1, text=progress_text)
+progress_bar.empty()
+
+# ---- Session State Initialization ----
 for key, default in [
     ("uploaded_files", []),
     ("advertiser_mappings", {}),
@@ -21,10 +37,11 @@ for key, default in [
     if key not in st.session_state:
         st.session_state[key] = default
 
-# Utility functions
+# ---- Utility Functions ----
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ['xlsx', 'xls']
 
+@st.cache_data(show_spinner=False)
 def save_upload(uploadedfile):
     filename = uploadedfile.name
     filepath = os.path.join(UPLOAD_FOLDER, filename)
@@ -32,6 +49,7 @@ def save_upload(uploadedfile):
         f.write(uploadedfile.getbuffer())
     return filepath
 
+@st.cache_data(show_spinner=False)
 def extract_advertisers_and_channels(filepaths):
     advertisers = set()
     channels = set()
@@ -39,7 +57,6 @@ def extract_advertisers_and_channels(filepaths):
     for path in filepaths:
         try:
             df = pd.read_excel(path)
-            # Adjust these column names if your actual files differ
             if 'Advertiser' in df.columns:
                 advertisers.update(df['Advertiser'].dropna().astype(str).unique())
             else:
@@ -52,10 +69,11 @@ def extract_advertisers_and_channels(filepaths):
             errors.append(f"Error reading '{os.path.basename(path)}': {e}")
     return sorted(advertisers), sorted(channels), errors
 
-# Sidebar branding and logo
-st.sidebar.image(MONKS_LOGO_PATH, use_container_width=True)
+# ---- Sidebar Branding and Logo ----
+if os.path.exists(MONKS_LOGO_PATH):
+    st.sidebar.image(MONKS_LOGO_PATH, use_container_width=True)
 
-# Step 1: File upload
+# ---- Step 1: File upload ----
 st.title("Competitive Ad Spend Analysis Dashboard")
 st.header("Step 1: Upload Excel Files")
 uploaded_files = st.file_uploader(
@@ -63,20 +81,22 @@ uploaded_files = st.file_uploader(
 )
 if uploaded_files:
     filepaths = []
-    for f in uploaded_files:
-        if allowed_file(f.name):
-            try:
-                path = save_upload(f)
-                filepaths.append(path)
-            except Exception as e:
-                st.error(f"Failed to save {f.name}: {e}")
-        else:
-            st.error(f"File '{f.name}' is not a supported Excel file.")
+    with st.spinner("Saving uploaded files..."):
+        for f in uploaded_files:
+            if allowed_file(f.name):
+                try:
+                    path = save_upload(f)
+                    filepaths.append(path)
+                except Exception as e:
+                    st.error(f"Failed to save {f.name}: {e}")
+            else:
+                st.error(f"File '{f.name}' is not a supported Excel file.")
     st.session_state.uploaded_files = filepaths
 
     # Extract advertisers and channels
     if filepaths:
-        advertisers, channels, errors = extract_advertisers_and_channels(filepaths)
+        with st.spinner("Parsing uploaded files..."):
+            advertisers, channels, errors = extract_advertisers_and_channels(filepaths)
         st.session_state.advertisers = advertisers
         st.session_state.channels = channels
         st.session_state.file_read_error = errors
@@ -88,7 +108,7 @@ if uploaded_files:
         else:
             st.success("Files uploaded and parsed successfully!")
 
-# Step 2: Mapping (dynamic UI)
+# ---- Step 2: Mapping (dynamic UI) ----
 if st.session_state.get("uploaded_files") and st.session_state.get("advertisers") and st.session_state.get("channels"):
     st.header("Step 2: Advertiser and Channel Mapping")
     st.info("Map each advertiser and channel to your preferred names.")
@@ -106,7 +126,7 @@ if st.session_state.get("uploaded_files") and st.session_state.get("advertisers"
 elif st.session_state.file_read_error:
     st.warning("Please fix the file issues above before proceeding.")
 
-# Step 3: Date range
+# ---- Step 3: Date range ----
 if st.session_state.get("advertiser_mappings") and len(st.session_state["advertiser_mappings"]) > 0:
     st.header("Step 3: Set Date Range")
     col1, col2 = st.columns(2)
@@ -117,7 +137,7 @@ if st.session_state.get("advertiser_mappings") and len(st.session_state["adverti
     st.session_state["start_date"] = str(start_date)
     st.session_state["end_date"] = str(end_date)
 
-# Step 4: Primary advertiser
+# ---- Step 4: Primary advertiser ----
 if st.session_state.get("advertiser_mappings") and len(st.session_state["advertiser_mappings"]) > 0:
     st.header("Step 4: Choose Primary Advertiser")
     mapped_advertisers = list(st.session_state["advertiser_mappings"].values())
@@ -125,7 +145,7 @@ if st.session_state.get("advertiser_mappings") and len(st.session_state["adverti
         primary = st.selectbox("Select the primary advertiser", mapped_advertisers)
         st.session_state["primary_advertiser"] = primary
 
-# Step 5: Dashboard and export stub
+# ---- Step 5: Dashboard and export stub ----
 if st.session_state.get("primary_advertiser"):
     st.header("Dashboard")
     st.success(f"Primary Advertiser: {st.session_state['primary_advertiser']}")
